@@ -1,0 +1,13 @@
+{
+  "name": "asan-signup",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Asan financial services platform — signup and wallet top-up",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.mjs"
+  },
+  "engines": {
+    "node": ">=20.12"
+  }
+}

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ورود و ثبت‌نام | آسان — پلتفرم خدمات مالی</title>
+  <meta name="description" content="آسان، پلتفرم خدمات مالی برای کسب‌وکارها: لینک پرداخت، شناسه واریز، شناسه کالا، استعلام‌ها و مشاوره هوشمند در یک پنل.">
+  <meta name="theme-color" content="#0e225b">
+  <link rel="icon" href="/favicon.png">
+  <link rel="preload" href="/fonts/vazirmatn-arabic-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="auth">
+    <aside class="auth-side">
+      <a class="brand on-dark" href="/">
+        <img src="/img/logo-mark-light.png" alt="">
+        <div><div class="brand-name">آسان</div><div class="brand-sub">پلتفرم خدمات مالی</div></div>
+      </a>
+      <div style="position:relative">
+        <h1>امور مالی کسب‌وکارتان را <span>ساده‌تر، سریع‌تر و هوشمندتر</span> انجام دهید</h1>
+        <p>همه سرویس‌های مالی کسب‌وکار در یک پنل؛ با یک کیف پول و بدون نیاز به یکپارچه‌سازی فنی.</p>
+        <ul class="auth-points">
+          <li><span data-icon="link"></span>لینک پرداخت و شناسه واریز اختصاصی</li>
+          <li><span data-icon="barcode"></span>جستجوی هوشمند شناسه کالا و خدمت</li>
+          <li><span data-icon="search"></span>استعلام‌های بانکی، مالیاتی و ثبتی</li>
+          <li><span data-icon="chat"></span>مشاوره هوشمند مالیات، بیمه و قانون تجارت</li>
+        </ul>
+      </div>
+      <div class="copy">© <span data-year></span> آسان — پلتفرم خدمات مالی</div>
+      <img class="circuit" src="/img/circuit.png" alt="">
+    </aside>
+
+    <main class="auth-main">
+      <div class="auth-main-top">
+        <a class="brand" href="/">
+          <img src="/img/logo-mark.png" alt="">
+          <div><div class="brand-name">آسان</div><div class="brand-sub">پلتفرم خدمات مالی</div></div>
+        </a>
+      </div>
+
+      <div class="auth-card">
+        <!-- step 1: mobile -->
+        <form id="step-mobile" class="step-anim" novalidate>
+          <h2>ورود یا ثبت‌نام</h2>
+          <p class="lead">شماره موبایل خود را وارد کنید. یک کد تأیید برایتان پیامک می‌شود.</p>
+          <label class="field">
+            <span class="field-label">شماره موبایل</span>
+            <input id="mobile" class="input ltr" type="tel" inputmode="numeric" autocomplete="tel" placeholder="09123456789" maxlength="14" autofocus>
+            <div class="error-text" id="mobile-error"></div>
+          </label>
+          <button class="btn btn-primary btn-block" id="send-btn" type="submit">دریافت کد تأیید</button>
+          <p class="auth-note">ورود شما به معنای پذیرش <a href="/terms">قوانین و مقررات</a> آسان است.</p>
+        </form>
+
+        <!-- step 2: code -->
+        <form id="step-code" class="hidden" novalidate>
+          <h2>کد تأیید را وارد کنید</h2>
+          <p class="lead"><span class="sent-to">کد ۵ رقمی به شماره <b class="ltr" id="sent-mobile"></b> پیامک شد.</span></p>
+          <div class="otp-row" id="otp-row">
+            <input inputmode="numeric" maxlength="1" aria-label="رقم ۱" autocomplete="one-time-code">
+            <input inputmode="numeric" maxlength="1" aria-label="رقم ۲">
+            <input inputmode="numeric" maxlength="1" aria-label="رقم ۳">
+            <input inputmode="numeric" maxlength="1" aria-label="رقم ۴">
+            <input inputmode="numeric" maxlength="1" aria-label="رقم ۵">
+          </div>
+          <div class="error-text" id="code-error"></div>
+          <div class="otp-meta">
+            <button type="button" class="btn-link" id="edit-mobile">ویرایش شماره</button>
+            <span id="timer"></span>
+          </div>
+          <button class="btn btn-primary btn-block" id="verify-btn" type="submit">تأیید و ادامه</button>
+        </form>
+
+        <!-- step 3: welcome + name -->
+        <form id="step-name" class="hidden" novalidate>
+          <div class="welcome-badge" data-icon="smile" data-size="32"></div>
+          <h2>به آسان خوش آمدید!</h2>
+          <p class="lead">شماره شما تأیید شد. برای تکمیل ثبت‌نام، نام و نام خانوادگی خود را وارد کنید.</p>
+          <label class="field">
+            <span class="field-label">نام</span>
+            <input id="first-name" class="input" autocomplete="given-name" maxlength="40">
+            <div class="error-text" id="first-error"></div>
+          </label>
+          <label class="field">
+            <span class="field-label">نام خانوادگی</span>
+            <input id="last-name" class="input" autocomplete="family-name" maxlength="40">
+            <div class="error-text" id="last-error"></div>
+          </label>
+          <button class="btn btn-primary btn-block" id="name-btn" type="submit">ورود به پنل</button>
+        </form>
+      </div>
+
+      <nav class="auth-footer">
+        <a href="/about">درباره ما</a>
+        <a href="/contact">تماس با ما</a>
+        <a href="/terms">قوانین و مقررات</a>
+      </nav>
+    </main>
+  </div>
+
+  <script src="/js/common.js"></script>
+  <script src="/js/signup.js"></script>
+</body>
+</html>
