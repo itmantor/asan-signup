@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>سرویس‌ها و تعرفه‌ها | آسان — پلتفرم خدمات مالی</title>
+  <meta name="theme-color" content="#0e225b">
+  <link rel="icon" href="/favicon.png">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <header class="page-top"><div class="in">
+    <a class="brand" href="/"><img src="/img/logo-mark.png" alt=""><div><div class="brand-name">آسان</div><div class="brand-sub">پلتفرم خدمات مالی</div></div></a>
+    <nav class="top-links"><a href="/services">سرویس‌ها و تعرفه‌ها</a><a class="btn btn-primary" href="/" style="height:40px;padding:0 16px;font-size:14px">ورود / ثبت‌نام</a></nav>
+  </div></header>
+  <main class="page page-wide" id="view"><div class="loading">در حال بارگذاری…</div></main>
+  <footer class="site-footer"><div class="in">
+    <span>© <span data-year></span> <span data-seller="name"></span></span>
+    <a href="/services">سرویس‌ها و تعرفه‌ها</a><a href="/about">درباره ما</a><a href="/contact">تماس با ما</a><a href="/terms">قوانین و مقررات</a>
+    <span class="enamad" data-enamad></span>
+  </div></footer>
+  <script src="/js/common.js"></script>
+  <script src="/js/catalog-view.js"></script>
+  <script>
+  ;(async () => {
+    const view = document.getElementById('view')
+    const { esc, money, icon } = Asan
+    let data, loggedIn = false
+    try {
+      ;[data] = await Promise.all([Catalog.load(), Asan.api('/api/me').then(() => (loggedIn = true)).catch(() => {})])
+    } catch (e) {
+      view.innerHTML = '<div class="card empty">' + esc(e.message) + '</div>'
+      return
+    }
+    const key = (location.pathname.match(/^\/services\/([a-z]+)/) || [])[1]
+    const s = key && data.services.find((x) => x.key === key)
+    if (s) {
+      document.title = s.name + ' | آسان — پلتفرم خدمات مالی'
+      const target = '/app/services/' + s.key
+      const page = Catalog.detail(s, data, { href: loggedIn ? target : '/?next=' + encodeURIComponent(target) })
+      view.innerHTML = '<a class="back" href="/services">' + icon('arrow', 16) + ' همه سرویس‌ها</a>' + page.html
+      page.bind(view)
+    } else {
+      view.innerHTML = `
+        <h1>سرویس‌ها و تعرفه‌ها</h1>
+        <p class="muted" style="margin-top:-6px">همه سرویس‌های آسان به‌صورت اشتراک ماهانه ارائه می‌شوند. اشتراک‌های ۳، ۶ و ۱۲ ماهه تخفیف دارند. مبالغ به تومان و بدون مالیات بر ارزش افزوده است.</p>
+        ${Catalog.grid(data.services, (x) => '/services/' + x.key)}
+        <h2>مقایسه تعرفه‌ها</h2>
+        <div class="card" style="padding:8px 10px"><div class="table-wrap"><table class="table">
+          <thead><tr><th>سرویس</th><th>سقف استفاده ماهانه</th><th>اشتراک ماهانه</th><th></th></tr></thead>
+          <tbody>${data.services.map((x) => `<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.quota)}</td><td class="num" style="white-space:nowrap">${money(x.monthlyPrice)} تومان</td><td><a href="/services/${x.key}">جزئیات و خرید</a></td></tr>`).join('')}</tbody>
+        </table></div></div>
+        <h2>شرایط عمومی اشتراک‌ها</h2>
+        <div class="card"><ol class="terms">${data.commonTerms.map((t) => '<li>' + esc(t) + '</li>').join('')}</ol></div>`
+    }
+    Asan.decorate()
+  })()
+  </script>
+</body>
+</html>

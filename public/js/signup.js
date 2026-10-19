@@ -3,6 +3,11 @@
   const $ = (id) => document.getElementById(id)
   const steps = { mobile: $('step-mobile'), code: $('step-code'), name: $('step-name') }
   let mobile = ''
+  // After login, continue to the page the visitor came from (e.g. buying a service)
+  const next = (() => {
+    const n = new URLSearchParams(location.search).get('next') || ''
+    return /^\/app(\/[a-z0-9/]*)?$/.test(n) ? n : '/app'
+  })()
   let timerId = null
 
   function show(name) {
@@ -11,7 +16,7 @@
       el.classList.toggle('step-anim', k === name)
     }
     const first = steps[name].querySelector('input')
-    if (first) setTimeout(() => first.focus(), 30)
+    if (first) setTimeout(() => steps[name].contains(document.activeElement) || first.focus(), 30)
   }
 
   function busy(btn, on, label) {
@@ -38,7 +43,7 @@
   /* ── already logged in? ── */
   Asan.api('/api/me')
     .then(({ user }) => {
-      if (user.hasProfile) location.replace('/app')
+      if (user.hasProfile) location.replace(next)
       else show('name')
     })
     .catch(() => {})
@@ -168,7 +173,7 @@
     try {
       const { user } = await Asan.api('/api/otp/verify', { method: 'POST', body: { mobile, code: c } })
       clearInterval(timerId)
-      if (user.hasProfile) return location.replace('/app')
+      if (user.hasProfile) return location.replace(next)
       show('name')
     } catch (err) {
       $('otp-row').classList.add('has-error')
@@ -197,7 +202,7 @@
     busy(btn, true)
     try {
       await Asan.api('/api/profile', { method: 'POST', body: { firstName: first.value, lastName: last.value } })
-      location.replace('/app')
+      location.replace(next)
     } catch (err) {
       if (err.status === 401) return location.reload()
       setError('last-error', err.message, null)

@@ -6,6 +6,8 @@
  *   POST /api/otp/verify    { mobile, code }      → { user }         (sets login cookie)
  *   GET  /api/me                                  → { user, wallet }
  *   POST /api/profile       { firstName, lastName } → { user }
+ *   GET  /api/services                            → service catalog with prices and terms (public)
+ *   POST /api/orders        { service, months }   → { invoice }      (subscription pre-invoice)
  *   POST /api/invoices      { amount }            → { invoice }      (wallet top-up pre-invoice)
  *   GET  /api/invoices                            → { invoices }
  *   GET  /api/invoices/:id                        → { invoice }
@@ -23,6 +25,7 @@ import { extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createSmsProvider } from './sms.mjs'
 import { openStore } from './store.mjs'
+import { COMMON_TERMS, DURATIONS, SERVICES, quote, serviceByKey } from './catalog.mjs'
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 try {
@@ -187,6 +190,10 @@ function sameOrigin(req) {
 const publicUser = (u) => u && { id: u.id, mobile: u.mobile, firstName: u.firstName, lastName: u.lastName, hasProfile: Boolean(u.firstName && u.lastName) }
 const publicInvoice = (i) => ({
   id: i.id,
+  kind: i.kind || 'wallet',
+  service: i.service,
+  months: i.months,
+  items: i.items || [{ description: i.description, unitPrice: i.amount, qty: 1, unit: '', gross: i.amount, discount: 0, net: i.amount }],
   number: i.number,
   createdAt: i.createdAt,
   status: i.status,
@@ -207,6 +214,8 @@ async function api(req, res, path) {
 
   if (path === '/api/health' && method === 'GET') return send(res, 200, { ok: true, sms: sms.name })
   if (path === '/api/site' && method === 'GET') return send(res, 200, SITE)
+  if (path === '/api/services' && method === 'GET')
+    return send(res, 200, { services: SERVICES, durations: DURATIONS, commonTerms: COMMON_TERMS, vatPercent: VAT_PERCENT })
 
   if (path === '/api/otp/send' && method === 'POST') {
     const body = await readJson(req)
@@ -273,6 +282,34 @@ async function api(req, res, path) {
 
   if (path === '/api/invoices' && method === 'GET') return send(res, 200, { invoices: store.invoicesOf(user.id).map(publicInvoice) })
 
+  if (path === '/api/orders' && method === 'POST') {
+    const body = await readJson(req)
+    const service = serviceByKey(String(body.service || ''))
+    if (!service) return fail(res, 400, 'invalid_service', 'سرویس انتخاب‌شده معتبر نیست.')
+    const q = quote(service, Number(body.months))
+    if (!q) return fail(res, 400, 'invalid_months', 'دوره اشتراک انتخاب‌شده معتبر نیست.')
+    if (body.acceptTerms !== true) return fail(res, 400, 'terms', 'برای خرید، شرایط استفاده از سرویس را بپذیرید.')
+    const recent = store.invoicesOf(user.id).filter((i) => Date.now() - Date.parse(i.createdAt) < 3_600_000)
+    if (recent.length >= 20) return fail(res, 429, 'rate_limited', 'تعداد پیش‌فاکتورها زیاد است. کمی بعد تلاش کنید.')
+    const vat = Math.round((q.net * VAT_PERCENT) / 100)
+    const description = `اشتراک ${q.months.toLocaleString('fa-IR')} ماهه سرویس ${service.name}`
+    const invoice = await store.createInvoice({
+      userId: user.id,
+      kind: 'subscription',
+      service: service.key,
+      months: q.months,
+      description,
+      items: [{ description, unitPrice: service.monthlyPrice, qty: q.months, unit: 'ماه', gross: q.gross, discount: q.discount, net: q.net }],
+      amount: q.net,
+      vatPercent: VAT_PERCENT,
+      vat,
+      total: q.net + vat,
+      buyer: { name: `${user.firstName} ${user.lastName}`, mobile: user.mobile },
+      seller: SITE.seller,
+    })
+    return send(res, 201, { invoice: publicInvoice(invoice) })
+  }
+
   if (path === '/api/invoices' && method === 'POST') {
     const body = await readJson(req)
     const amount = Number(toLatin(body.amount).replace(/[^\d]/g, ''))
@@ -283,7 +320,9 @@ async function api(req, res, path) {
     const vat = Math.round((amount * VAT_PERCENT) / 100)
     const invoice = await store.createInvoice({
       userId: user.id,
+      kind: 'wallet',
       description: 'شارژ کیف پول پلتفرم خدمات مالی آسان',
+      items: [{ description: 'شارژ کیف پول پلتفرم خدمات مالی آسان', unitPrice: amount, qty: 1, unit: '', gross: amount, discount: 0, net: amount }],
       amount,
       vatPercent: VAT_PERCENT,
       vat,
@@ -322,11 +361,12 @@ const TYPES = {
   '.json': 'application/json',
   '.txt': 'text/plain; charset=utf-8',
 }
-const PAGES = { '/': 'index.html', '/app': 'app.html', '/about': 'about.html', '/contact': 'contact.html', '/terms': 'terms.html' }
+const PAGES = { '/': 'index.html', '/app': 'app.html', '/services': 'services.html', '/about': 'about.html', '/contact': 'contact.html', '/terms': 'terms.html' }
 
 async function serveStatic(req, res, path) {
   let file = PAGES[path.replace(/\/$/, '') || '/']
   if (!file && path.startsWith('/app/')) file = 'app.html'
+  if (!file && /^\/services\/[a-z]+\/?$/.test(path)) file = 'services.html'
   file = file ? join(PUBLIC, file) : normalize(join(PUBLIC, decodeURIComponent(path)))
   if (!file.startsWith(PUBLIC)) return fail(res, 403, 'forbidden', '')
   try {
