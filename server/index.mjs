@@ -96,6 +96,8 @@ const isName = (s) => s.length >= 2 && s.length <= 40 && /^[؀-ۿ‌\s‌ ]+$/.t
 
 function clientIp(req) {
   if (TRUST_PROXY) {
+    // ArvanCloud CDN puts the visitor's real IP in ar-real-ip
+    if (req.headers['ar-real-ip']) return String(req.headers['ar-real-ip']).trim()
     const xff = req.headers['x-forwarded-for']
     if (xff) return String(xff).split(',')[0].trim()
     if (req.headers['x-real-ip']) return String(req.headers['x-real-ip'])

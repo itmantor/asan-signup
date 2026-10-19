@@ -31,7 +31,7 @@ npm start               # http://127.0.0.1:3100
 ## فایل‌های استقرار
 
 - `deploy/asan-signup.service` سرویس systemd (مسیر `/opt/asan-signup`، کاربر `asan`، پورت داخلی 3100)
-- `deploy/nginx-signup.conf` تنظیم Nginx برای `signup.asanfsp.ir`؛ گواهی Let's Encrypt با certbot
+- `deploy/nginx-signup.conf` تنظیم Nginx برای `signup.asanfsp.ir`؛ HTTPS و گواهی را ابر آروان می‌دهد
 
 ## به‌روزرسانی روی سرور
 
