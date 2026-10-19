@@ -376,14 +376,19 @@ async function serveStatic(req, res, path) {
     const longCache = ['.woff2', '.png'].includes(ext)
     res.writeHead(200, {
       'Content-Type': TYPES[ext] || 'application/octet-stream',
-      'Cache-Control': longCache ? 'public, max-age=604800' : 'no-cache',
+      'Cache-Control': ext === '.html' ? 'no-store' : longCache ? 'public, max-age=604800' : 'public, max-age=86400',
     })
-    res.end(req.method === 'HEAD' ? undefined : await readFile(file))
+    if (req.method === 'HEAD') return res.end()
+    res.end(ext === '.html' ? versioned(await readFile(file, 'utf8')) : await readFile(file))
   } catch {
     res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' })
     res.end(await readFile(join(PUBLIC, '404.html')).catch(() => 'Not found'))
   }
 }
+
+/** Changes on every restart, so the CDN (ArvanCloud) and browsers fetch fresh JS/CSS after an update. */
+const BUILD = Date.now().toString(36)
+const versioned = (html) => html.replace(/(\/(?:js|css)\/[\w.-]+\.(?:js|css))"/g, `$1?v=${BUILD}"`)
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
