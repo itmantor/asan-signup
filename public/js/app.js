@@ -1,4 +1,4 @@
-/* User panel: dashboard, service pages (buy a monthly subscription), orders, wallet, pre-invoice. */
+/* User panel: dashboard, service pages (buy a monthly subscription), orders, pre-invoice. */
 ;(() => {
   const { icon, money, toFa, esc, faDate, api } = Asan
   const $ = (id) => document.getElementById(id)
@@ -21,7 +21,6 @@
       ${catalog.services.map((s) => item(`/app/services/${s.key}`, s.icon, esc(s.name), path === `/app/services/${s.key}`)).join('')}
       <div class="nav-label">حساب</div>
       ${item('/app/orders', 'receipt', 'سفارش‌ها و پیش‌فاکتورها', path === '/app/orders' || path.startsWith('/app/invoices'))}
-      ${item('/app/wallet', 'wallet', 'کیف پول', path === '/app/wallet')}
     `
   }
 
@@ -65,7 +64,6 @@
     if (path === '/app/services') return allServices()
     if (svc) return servicePage(svc[1])
     if (path === '/app/orders') return orders()
-    if (path === '/app/wallet') return wallet()
     if (inv) return invoice(inv[1])
     go('/app', true)
   }
@@ -212,79 +210,6 @@
       </div>`
   }
 
-  /* ───────── wallet (kept simple) ───────── */
-
-  function wallet() {
-    setTitle('کیف پول')
-    view.innerHTML = `
-      <div class="step-anim">
-        <div class="topup">
-          <form class="card" id="topup-form" novalidate>
-            <div class="wallet-line">${icon('wallet', 22)}<span>موجودی کیف پول</span><b class="num">${money(me.wallet.balance)} تومان</b></div>
-            <label class="field" style="margin-bottom:6px">
-              <span class="field-label">مبلغ شارژ</span>
-              <div class="input-wrap">
-                <input id="amount" class="input ltr num" inputmode="numeric" autocomplete="off" placeholder="مثلاً ۱٬۰۰۰٬۰۰۰" style="text-align:right">
-                <span class="input-suffix">تومان</span>
-              </div>
-            </label>
-            <div class="words" id="words"></div>
-            <div class="presets">
-              ${site.presets.map((p) => `<button type="button" class="preset" data-amount="${p}">${toFa(p / 1_000_000)} میلیون<small>تومان</small></button>`).join('')}
-            </div>
-            <div class="error-text" id="amount-error"></div>
-            <button class="btn btn-primary btn-block" id="topup-btn" type="submit" style="margin-top:8px">تأیید و صدور پیش‌فاکتور</button>
-          </form>
-          <div class="card">
-            <h3 class="section-title" style="font-size:15px">خلاصه پرداخت</h3>
-            <div class="summary-row"><span>مبلغ شارژ</span><b id="s-amount">—</b></div>
-            <div class="summary-row"><span>مالیات بر ارزش افزوده (${toFa(site.vatPercent)}٪)</span><b id="s-vat">—</b></div>
-            <div class="summary-row total"><span>مبلغ قابل پرداخت</span><b id="s-total">—</b></div>
-          </div>
-        </div>
-      </div>`
-
-    const input = $('amount')
-    const presetBtns = [...view.querySelectorAll('.preset')]
-    let amount = 0
-    const update = () => {
-      const vat = Math.round((amount * site.vatPercent) / 100)
-      $('s-amount').textContent = amount ? `${money(amount)} تومان` : '—'
-      $('s-vat').textContent = amount ? `${money(vat)} تومان` : '—'
-      $('s-total').textContent = amount ? `${money(amount + vat)} تومان` : '—'
-      $('words').textContent = amount ? `${Asan.words(amount)} تومان` : ''
-      presetBtns.forEach((b) => b.classList.toggle('active', Number(b.dataset.amount) === amount))
-      $('amount-error').textContent = ''
-      input.classList.remove('has-error')
-    }
-    input.addEventListener('input', () => {
-      amount = Number(Asan.toLatin(input.value).replace(/\D/g, '').slice(0, 10)) || 0
-      input.value = amount ? money(amount) : ''
-      update()
-    })
-    presetBtns.forEach((b) => b.addEventListener('click', () => ((amount = Number(b.dataset.amount)), (input.value = money(amount)), update())))
-
-    $('topup-form').addEventListener('submit', async (e) => {
-      e.preventDefault()
-      const err = (m) => (($('amount-error').textContent = m), input.classList.add('has-error'))
-      if (!amount) return err('مبلغ شارژ را وارد کنید یا یکی از مبالغ پیشنهادی را انتخاب کنید.')
-      if (amount < site.minAmount) return err(`حداقل مبلغ شارژ ${money(site.minAmount)} تومان است.`)
-      if (amount > site.maxAmount) return err(`حداکثر مبلغ شارژ ${money(site.maxAmount)} تومان است.`)
-      const btn = $('topup-btn')
-      btn.disabled = true
-      btn.innerHTML = '<span class="spin"></span>'
-      try {
-        const { invoice } = await api('/api/invoices', { method: 'POST', body: { amount } })
-        go(`/app/invoices/${invoice.id}`)
-      } catch (ex) {
-        if (ex.status === 401) return location.replace('/')
-        err(ex.message)
-        btn.disabled = false
-        btn.textContent = 'تأیید و صدور پیش‌فاکتور'
-      }
-    })
-  }
-
   /* ───────── pre-invoice ───────── */
 
   async function invoice(id) {
@@ -378,7 +303,7 @@
             svc
               ? `• اشتراک سرویس «${esc(svc.name)}» پس از پرداخت فعال می‌شود و به مدت ${toFa(inv.months)} ماه (هر ماه ۳۰ روز) معتبر است. سقف استفاده: ${esc(svc.quota)}.<br>
                  • خرید این اشتراک به معنای پذیرش <a href="/services/${svc.key}" target="_blank">شرایط استفاده از سرویس</a> است.`
-              : `• پس از پرداخت، مبلغ شارژ به موجودی کیف پول شما افزوده می‌شود و فقط برای سرویس‌های آسان قابل استفاده است.`
+              : `• این پیش‌فاکتور تا ۷ روز معتبر است.`
           }
         </p>
 

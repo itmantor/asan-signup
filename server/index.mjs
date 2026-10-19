@@ -4,11 +4,10 @@
  *
  *   POST /api/otp/send      { mobile }            → { ttl, resendIn }
  *   POST /api/otp/verify    { mobile, code }      → { user }         (sets login cookie)
- *   GET  /api/me                                  → { user, wallet }
+ *   GET  /api/me                                  → { user }
  *   POST /api/profile       { firstName, lastName } → { user }
  *   GET  /api/services                            → service catalog with prices and terms (public)
  *   POST /api/orders        { service, months }   → { invoice }      (subscription pre-invoice)
- *   POST /api/invoices      { amount }            → { invoice }      (wallet top-up pre-invoice)
  *   GET  /api/invoices                            → { invoices }
  *   GET  /api/invoices/:id                        → { invoice }
  *   POST /api/invoices/:id/pay                    → 503 gateway_unavailable (gateway not connected yet)
@@ -49,10 +48,6 @@ const SECRET = env.APP_SECRET || randomBytes(32).toString('hex')
 if (!env.APP_SECRET) console.warn('[asan] APP_SECRET is not set — logins will reset on every restart')
 
 const VAT_PERCENT = Number(env.VAT_PERCENT ?? 10)
-const MIN_AMOUNT = Number(env.MIN_TOPUP_TOMAN || 100_000)
-const MAX_AMOUNT = Number(env.MAX_TOPUP_TOMAN || 100_000_000)
-const PRESETS = [1_000_000, 3_000_000, 5_000_000]
-const SERVICE_SETUP_FEE = Number(env.SERVICE_SETUP_FEE_TOMAN || 1_000_000)
 
 const SITE = {
   brand: 'آسان',
@@ -69,10 +64,6 @@ const SITE = {
   },
   supportHours: env.SUPPORT_HOURS || 'شنبه تا چهارشنبه، ساعت ۹ تا ۱۷',
   vatPercent: VAT_PERCENT,
-  minAmount: MIN_AMOUNT,
-  maxAmount: MAX_AMOUNT,
-  presets: PRESETS,
-  serviceSetupFee: SERVICE_SETUP_FEE,
   enamadHtml: env.ENAMAD_HTML || '',
 }
 
@@ -190,7 +181,7 @@ function sameOrigin(req) {
 const publicUser = (u) => u && { id: u.id, mobile: u.mobile, firstName: u.firstName, lastName: u.lastName, hasProfile: Boolean(u.firstName && u.lastName) }
 const publicInvoice = (i) => ({
   id: i.id,
-  kind: i.kind || 'wallet',
+  kind: i.kind || 'subscription',
   service: i.service,
   months: i.months,
   items: i.items || [{ description: i.description, unitPrice: i.amount, qty: 1, unit: '', gross: i.amount, discount: 0, net: i.amount }],
@@ -264,10 +255,7 @@ async function api(req, res, path) {
   const user = readSession(req)
   if (!user) return fail(res, 401, 'unauthorized', 'لطفاً دوباره وارد شوید.')
 
-  if (path === '/api/me' && method === 'GET') {
-    const paid = store.invoicesOf(user.id).filter((i) => i.status === 'paid')
-    return send(res, 200, { user: publicUser(user), wallet: { balance: paid.reduce((s, i) => s + i.amount, 0) } })
-  }
+  if (path === '/api/me' && method === 'GET') return send(res, 200, { user: publicUser(user) })
 
   if (path === '/api/profile' && method === 'POST') {
     const body = await readJson(req)
@@ -304,29 +292,6 @@ async function api(req, res, path) {
       vatPercent: VAT_PERCENT,
       vat,
       total: q.net + vat,
-      buyer: { name: `${user.firstName} ${user.lastName}`, mobile: user.mobile },
-      seller: SITE.seller,
-    })
-    return send(res, 201, { invoice: publicInvoice(invoice) })
-  }
-
-  if (path === '/api/invoices' && method === 'POST') {
-    const body = await readJson(req)
-    const amount = Number(toLatin(body.amount).replace(/[^\d]/g, ''))
-    if (!Number.isSafeInteger(amount) || amount < MIN_AMOUNT || amount > MAX_AMOUNT)
-      return fail(res, 400, 'invalid_amount', `مبلغ باید بین ${MIN_AMOUNT.toLocaleString('fa-IR')} و ${MAX_AMOUNT.toLocaleString('fa-IR')} تومان باشد.`)
-    const recent = store.invoicesOf(user.id).filter((i) => Date.now() - Date.parse(i.createdAt) < 3_600_000)
-    if (recent.length >= 20) return fail(res, 429, 'rate_limited', 'تعداد پیش‌فاکتورها زیاد است. کمی بعد تلاش کنید.')
-    const vat = Math.round((amount * VAT_PERCENT) / 100)
-    const invoice = await store.createInvoice({
-      userId: user.id,
-      kind: 'wallet',
-      description: 'شارژ کیف پول پلتفرم خدمات مالی آسان',
-      items: [{ description: 'شارژ کیف پول پلتفرم خدمات مالی آسان', unitPrice: amount, qty: 1, unit: '', gross: amount, discount: 0, net: amount }],
-      amount,
-      vatPercent: VAT_PERCENT,
-      vat,
-      total: amount + vat,
       buyer: { name: `${user.firstName} ${user.lastName}`, mobile: user.mobile },
       seller: SITE.seller,
     })
